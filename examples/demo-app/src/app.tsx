@@ -15,6 +15,9 @@ import {
   setScreenCaptured
 } from '@kepler.gl/ai-assistant';
 import {theme} from '@kepler.gl/styles';
+import {useSelector} from 'react-redux';
+import {ParsedConfig} from '@kepler.gl/types';
+import {SqlPanel} from 'keplergl-duckdb-plugin';
 import Banner from './components/banner';
 import Announcement, {FormLink} from './components/announcement';
 import {replaceLoadDataModal} from './factories/load-data-modal';
@@ -52,6 +55,7 @@ import sampleIconCsv from './data/sample-icon-csv';
 import sampleGpsData from './data/sample-gps-data';
 import sampleRowData, {config as rowDataConfig} from './data/sample-row-data';
 import {processCsvData, processGeojson, processRowObject} from '@kepler.gl/processors';
+
 /* eslint-enable no-unused-vars */
 
 const BannerHeight = 48;
@@ -102,6 +106,10 @@ const App = props => {
   const [showBanner, toggleShowBanner] = useState(false);
   const {params: {id, provider} = {}, location: {query = {}} = {}} = props;
   const dispatch = useDispatch();
+
+  const isSqlPanelOpen = useSelector(
+    state => state?.demo?.keplerGl?.map?.uiState.mapControls.sqlPanel.active
+  );
 
   useEffect(() => {
     // if we pass an id as part of the url
@@ -309,7 +317,7 @@ const App = props => {
         options: {
           keepExistingConfig: true
         },
-        config: sampleGeojsonConfig
+        config: sampleGeojsonConfig as ParsedConfig
       })
     );
   }, [dispatch]);
@@ -368,7 +376,7 @@ const App = props => {
             data: processCsvData(sampleS2Data)
           }
         ],
-        config: s2MapConfig,
+        config: s2MapConfig as ParsedConfig,
         options: {
           keepExistingConfig: true
         }
@@ -473,6 +481,11 @@ const App = props => {
                 )}
               </AutoSizer>
             </div>
+            {isSqlPanelOpen ? (
+              <div style={{width: '50%'}}>
+                <SqlPanel />
+              </div>
+            ) : null}
           </div>
         </ScreenshotWrapper>
       </GlobalStyle>
