@@ -14,7 +14,7 @@ import {
   setStartScreenCapture,
   setScreenCaptured
 } from '@kepler.gl/ai-assistant';
-import {theme} from '@kepler.gl/styles';
+import {panelBorderColor, theme} from '@kepler.gl/styles';
 import {useSelector} from 'react-redux';
 import {ParsedConfig} from '@kepler.gl/types';
 import {SqlPanel} from 'keplergl-duckdb-plugin';
@@ -33,7 +33,13 @@ import {
   onLoadCloudMapSuccess
 } from './actions';
 
-import {loadCloudMap, addDataToMap, replaceDataInMap} from '@kepler.gl/actions';
+import {
+  loadCloudMap,
+  addDataToMap,
+  replaceDataInMap,
+  toggleMapControl,
+  toggleModal
+} from '@kepler.gl/actions';
 import {CLOUD_PROVIDERS} from './cloud-providers';
 import {Panel, PanelGroup, PanelResizeHandle} from 'react-resizable-panels';
 
@@ -105,7 +111,7 @@ const CONTAINER_STYLE = {
 };
 
 const StyledResizeHandle = styled(PanelResizeHandle)`
-  background-color: #333;
+  background-color: ${panelBorderColor};
   &:hover {
     background-color: #555;
   }
@@ -148,6 +154,11 @@ const App = props => {
     if (query.mapUrl) {
       // TODO?: validate map url
       dispatch(loadRemoteMap({dataUrl: query.mapUrl}));
+    }
+
+    if (query.sql) {
+      dispatch(toggleMapControl('sqlPanel', 0));
+      dispatch(toggleModal(null));
     }
 
     // delay zs to show the banner
@@ -489,7 +500,7 @@ const App = props => {
                 <>
                   <StyledResizeHandle />
                   <Panel defaultSize={40} minSize={20}>
-                    <SqlPanel />
+                    <SqlPanel initialSql={query.sql || ''} />
                   </Panel>
                 </>
               )}
