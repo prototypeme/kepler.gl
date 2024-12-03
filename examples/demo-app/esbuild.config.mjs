@@ -47,7 +47,13 @@ const config = {
   platform: 'browser',
   format: 'iife',
   logLevel: 'info',
-  loader: {'.js': 'jsx', '.css': 'css'},
+  loader: {
+    '.js': 'jsx',
+    '.css': 'css',
+    '.ttf': 'file',
+    '.woff': 'file',
+    '.woff2': 'file'
+  },
   entryPoints: ['src/main.js'],
   outfile: 'dist/bundle.js',
   bundle: true,
