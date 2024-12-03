@@ -189,9 +189,36 @@ function openURL(url) {
     await esbuild
       .build({
         ...config,
-
         minify: true,
-        sourcemap: false
+        sourcemap: false,
+        // Add alias resolution for build
+        alias: {
+          ...RESOLVE_LOCAL_ALIASES,
+          'keplergl-duckdb-plugin': `${SRC_DIR}/keplergl-duckdb-plugin/src`
+        },
+        // Add these production optimizations
+        define: {
+          ...config.define,
+          'process.env.NODE_ENV': '"production"'
+        },
+        drop: ['console', 'debugger'],
+        treeShaking: true,
+        metafile: true,
+        // Optionally generate a bundle analysis
+        plugins: [
+          ...config.plugins,
+          {
+            name: 'bundle-analyzer',
+            setup(build) {
+              build.onEnd(result => {
+                if (result.metafile) {
+                  // Write bundle analysis to disk
+                  fs.writeFileSync('meta.json', JSON.stringify(result.metafile));
+                }
+              });
+            }
+          }
+        ]
       })
       .catch(e => {
         console.error(e);

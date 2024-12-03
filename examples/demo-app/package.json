@@ -1,6 +1,7 @@
 {
   "scripts": {
     "start": "node esbuild.config.mjs --start",
+    "build": "node esbuild.config.mjs --build",
     "start:local": "NODE_ENV=local node esbuild.config.mjs --start",
     "start:local-ai": "NODE_ENV=local node esbuild.config.mjs --start --env.ai",
     "start:local-deck": "NODE_ENV=local node esbuild.config.mjs --start --env.deck",
