@@ -35,6 +35,7 @@ import {
 
 import {loadCloudMap, addDataToMap, replaceDataInMap} from '@kepler.gl/actions';
 import {CLOUD_PROVIDERS} from './cloud-providers';
+import {Panel, PanelGroup, PanelResizeHandle} from 'react-resizable-panels';
 
 const KeplerGl = require('@kepler.gl/components').injectComponents([
   replaceLoadDataModal(),
@@ -99,8 +100,19 @@ const CONTAINER_STYLE = {
   left: 0,
   top: 0,
   display: 'flex',
-  flexDirection: 'row'
+  flexDirection: 'column',
+  backgroundColor: '#333'
 };
+
+const StyledResizeHandle = styled(PanelResizeHandle)`
+  background-color: #333;
+  &:hover {
+    background-color: #555;
+  }
+  width: 100%;
+  height: 5px;
+  cursor: row-resize;
+`;
 
 const App = props => {
   const [showBanner, toggleShowBanner] = useState(false);
@@ -443,14 +455,7 @@ const App = props => {
 
   return (
     <ThemeProvider theme={theme}>
-      <GlobalStyle
-      // this is to apply the same modal style as kepler.gl core
-      // because styled-components doesn't always return a node
-      // https://github.com/styled-components/styled-components/issues/617
-      // ref={node => {
-      //   node ? (this.root = node) : null;
-      // }}
-      >
+      <GlobalStyle>
         <ScreenshotWrapper
           startScreenCapture={props.demo.aiAssistant.screenshotToAsk.startScreenCapture}
           setScreenCaptured={_setScreenCaptured}
@@ -460,32 +465,35 @@ const App = props => {
             <Announcement onDisable={_disableBanner} />
           </Banner>
           <div style={CONTAINER_STYLE}>
-            <div style={{flexGrow: 1}}>
-              <AutoSizer>
-                {({height, width}) => (
-                  <KeplerGl
-                    mapboxApiAccessToken={CLOUD_PROVIDERS_CONFIGURATION.MAPBOX_TOKEN}
-                    id="map"
-                    /*
-                     * Specify path to keplerGl state, because it is not mount at the root
-                     */
-                    getState={keplerGlGetState}
-                    width={width}
-                    height={height}
-                    cloudProviders={CLOUD_PROVIDERS}
-                    localeMessages={combinedMessages}
-                    onExportToCloudSuccess={onExportFileSuccess}
-                    onLoadCloudMapSuccess={onLoadCloudMapSuccess}
-                    featureFlags={DEFAULT_FEATURE_FLAGS}
-                  />
-                )}
-              </AutoSizer>
-            </div>
-            {isSqlPanelOpen ? (
-              <div style={{width: '50%'}}>
-                <SqlPanel />
-              </div>
-            ) : null}
+            <PanelGroup direction="vertical">
+              <Panel defaultSize={isSqlPanelOpen ? 60 : 100}>
+                <AutoSizer>
+                  {({height, width}) => (
+                    <KeplerGl
+                      mapboxApiAccessToken={CLOUD_PROVIDERS_CONFIGURATION.MAPBOX_TOKEN}
+                      id="map"
+                      getState={keplerGlGetState}
+                      width={width}
+                      height={height}
+                      cloudProviders={CLOUD_PROVIDERS}
+                      localeMessages={combinedMessages}
+                      onExportToCloudSuccess={onExportFileSuccess}
+                      onLoadCloudMapSuccess={onLoadCloudMapSuccess}
+                      featureFlags={DEFAULT_FEATURE_FLAGS}
+                    />
+                  )}
+                </AutoSizer>
+              </Panel>
+
+              {isSqlPanelOpen && (
+                <>
+                  <StyledResizeHandle />
+                  <Panel defaultSize={40} minSize={20}>
+                    <SqlPanel />
+                  </Panel>
+                </>
+              )}
+            </PanelGroup>
           </div>
         </ScreenshotWrapper>
       </GlobalStyle>
