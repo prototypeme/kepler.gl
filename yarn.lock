@@ -3196,7 +3196,7 @@ __metadata:
     color-interpolate: "npm:^1.0.5"
     echarts: "npm:^5.5.1"
     global: "npm:^4.3.0"
-    react-ai-assist: "npm:0.0.21"
+    react-ai-assist: "npm:0.0.24"
   languageName: unknown
   linkType: soft
 
@@ -24763,9 +24763,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-ai-assist@npm:0.0.21":
-  version: 0.0.21
-  resolution: "react-ai-assist@npm:0.0.21"
+"react-ai-assist@npm:0.0.24":
+  version: 0.0.24
+  resolution: "react-ai-assist@npm:0.0.24"
   dependencies:
     "@duckdb/duckdb-wasm": "npm:^1.29.0"
     "@emotion/is-prop-valid": "npm:^1.3.1"
@@ -24799,10 +24799,11 @@ __metadata:
     tailwindcss: "npm:^3.4.11"
   peerDependencies:
     "@duckdb/duckdb-wasm": ^1.29.0
+    apache-arrow: ^13 || ^18
     echarts: ^5.5.1
     react: ^18.0.0
     react-dom: ^18.0.0
-  checksum: 10c0/646321093f2536f4f595d0b4e7ed36fc529453d3b02668b2c31b7787936c22dd638d82369fffae4221b4e388cf2b9f286242247881aef6cbbdc23391c237c126
+  checksum: 10c0/d66dbb2ee7e206ae84fcba9c9f0edcb0c6637db3a2b5ad6bcc5719378b4ce72aeed3909b02939aba8bbd6364595c67bdd8faf966ed7b5dcad353ca8eebfdfb22
   languageName: node
   linkType: hard
 

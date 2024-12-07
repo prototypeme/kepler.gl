@@ -104,6 +104,7 @@ function AiAssistantComponentFactory() {
           )
       }),
       queryDuckDBFunctionDefinition({
+        // duckDB: kepler.gl duckdb instance
         getValues: (datasetName: string, variableName: string): number[] =>
           getValuesFromDataset(visState.datasets, datasetName, variableName)
       })
