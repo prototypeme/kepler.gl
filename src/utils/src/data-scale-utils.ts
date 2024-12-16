@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright contributors to the kepler.gl project
 
+import {bisectLeft, quantileSorted as d3Quantile, extent} from 'd3-array';
+import moment from 'moment';
+
 import {notNullorUndefined} from '@kepler.gl/common-utils';
 import {ALL_FIELD_TYPES, ColorMap, ColorRange, SCALE_FUNC, SCALE_TYPES} from '@kepler.gl/constants';
 import {Layer, VisualChannel, VisualChannelDomain} from '@kepler.gl/layers';
 import {HexColor, MapState} from '@kepler.gl/types';
-import {bisectLeft, quantileSorted as d3Quantile, extent} from 'd3-array';
-import moment from 'moment';
+
 import {isRgbColor, rgbToHex} from './color-utils';
 import {DataContainerInterface} from './data-container-interface';
 import {formatNumber, reverseFormatNumber, unique} from './data-utils';
@@ -77,23 +79,32 @@ export function getLogDomain(data: any[], valueAccessor: dataValueAccessor): [nu
   return [d0 === 0 ? 1e-5 : d0, d1];
 }
 
+export type DomainStops = {
+  stops: number[];
+  z: number[];
+};
+
 /**
  * whether field domain is stops
  */
-export function isDomainStops(domain: any): boolean {
+export function isDomainStops(domain: unknown): domain is DomainStops {
   return isPlainObject(domain) && Array.isArray(domain.stops) && Array.isArray(domain.z);
 }
+
+export type DomainQuantiles = {
+  quantiles: number[];
+  z: number[];
+};
 
 /**
  * whether field domain is quantiles
  */
-export function isDomainQuantile(domain: any): boolean {
+export function isDomainQuantile(domain: any): domain is DomainQuantiles {
   return isPlainObject(domain) && Array.isArray(domain.quantiles) && Array.isArray(domain.z);
 }
 
 /**
  * get the domain at zoom
- * @type {typeof import('./data-scale-utils').getThresholdsFromQuantiles}
  */
 export function getThresholdsFromQuantiles(
   quantiles: number[],
@@ -115,20 +126,20 @@ export function getThresholdsFromQuantiles(
 
 /**
  * get the domain at zoom
- * @type {typeof import('./data-scale-utils').getDomainStepsbyZoom}
  */
 export function getDomainStepsbyZoom(domain: any[], steps: number[], z: number): any {
   const i = bisectLeft(steps, z);
 
-  if (i === 0) {
-    return domain[0];
+  if (steps[i] === z) {
+    // If z is an integer value exactly matching a step, return the corresponding domain
+    return domain[i];
   }
-  return domain[i - 1];
+  // Otherwise, return the next coarsest domain
+  return domain[Math.max(i - 1, 0)];
 }
 
 /**
  * Get d3 scale function
- * @type {typeof import('./data-scale-utils').getScaleFunction}
  */
 export function getScaleFunction(
   scale: string,
@@ -197,7 +208,7 @@ function getScaleLabels(
   });
 }
 
-const customScaleLabelFormat = d => String(d);
+const customScaleLabelFormat = n => (n ? formatNumber(n, 'real') : 'no value');
 /**
  * Get linear / quant scale color breaks
  */

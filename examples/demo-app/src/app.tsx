@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright contributors to the kepler.gl project
 
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useMemo, useState} from 'react';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import styled, {ThemeProvider} from 'styled-components';
 import window from 'global/window';
 import {connect, useDispatch} from 'react-redux';
 import cloneDeep from 'lodash.clonedeep';
+import isEqual from 'lodash.isequal';
 
 import {ScreenshotWrapper} from 'react-ai-assist';
 import {
@@ -128,13 +129,18 @@ const App = props => {
   const isSqlPanelOpen = useSelector(
     state => state?.demo?.keplerGl?.map?.uiState.mapControls.sqlPanel.active
   );
+  const prevQueryRef = useRef<number>(null);
 
   useEffect(() => {
     // if we pass an id as part of the url
-    // we ry to fetch along map configurations
-
+    // we try to fetch along map configurations
     const cloudProvider = CLOUD_PROVIDERS.find(c => c.name === provider);
     if (cloudProvider) {
+      // Prevent constant reloading after change of the location
+      if (isEqual(prevQueryRef.current, {provider, id, query})) {
+        return;
+      }
+
       dispatch(
         loadCloudMap({
           loadParams: query,
@@ -142,6 +148,7 @@ const App = props => {
           onSuccess: onLoadCloudMapSuccess
         })
       );
+      prevQueryRef.current = {provider, id, query};
       return;
     }
 

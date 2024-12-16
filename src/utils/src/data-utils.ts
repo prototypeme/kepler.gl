@@ -181,7 +181,7 @@ export function normalizeSliderValue(
   val: number,
   minValue: number,
   step: number,
-  marks?: number[]
+  marks?: number[] | null
 ): number {
   if (marks && marks.length) {
     // Use in slider, given a number and an array of numbers, return the nears number from the array
@@ -261,7 +261,8 @@ export const FIELD_DISPLAY_FORMAT: {
       return String(value);
     }
   },
-  [ALL_FIELD_TYPES.array]: JSON.stringify
+  [ALL_FIELD_TYPES.array]: JSON.stringify,
+  [ALL_FIELD_TYPES.h3]: defaultFormatter
 };
 
 /**

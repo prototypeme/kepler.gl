@@ -5,8 +5,8 @@
 
 export {
   colorMaybeToRGB,
+  colorRangeBackwardCompatibility,
   createLinearGradient,
-  getColorGroupByName,
   hasColorMap,
   hexToRgb,
   isHexColor,
@@ -14,11 +14,15 @@ export {
   normalizeColor,
   reverseColorRange,
   rgbToHex,
-  updateColorRange,
   addCustomPaletteColor,
   removeCustomPaletteColor,
   sortCustomPaletteColor,
-  updateCustomPaletteColor
+  updateCustomPaletteColor,
+  updateColorRangeBySelectedPalette,
+  paletteIsSteps,
+  paletteIsType,
+  paletteIsColorBlindSafe,
+  updateColorRangeByMatchingPalette
 } from './color-utils';
 export {errorNotification} from './notifications-utils';
 
@@ -48,6 +52,7 @@ export {
   getTimelineFromAnimationConfig,
   getTimelineFromFilter
 } from './time';
+export {maybeHexToGeo, getPositionFromHexValue} from './position-utils';
 
 export {
   datasetColorMaker,
@@ -132,14 +137,15 @@ export {
   getScaleFunction,
   getVisualChannelScaleByZoom,
   initializeLayerColorMap,
-  isNumericColorBreaks
+  isNumericColorBreaks,
+  isDomainStops,
+  isDomainQuantile,
+  getDomainStepsbyZoom,
+  getThresholdsFromQuantiles
 } from './data-scale-utils';
-export type {ColorBreak, ColorBreakOrdinal} from './data-scale-utils';
+export type {ColorBreak, ColorBreakOrdinal, DomainQuantiles, DomainStops} from './data-scale-utils';
 
 export {DataRow} from './data-row';
-
-export {getCentroid, getHexFields, h3IsValid, idToPolygonGeo} from './h3-utils';
-export type {Centroid} from './h3-utils';
 
 // Application config
 export {getApplicationConfig, initApplicationConfig} from './application-config';

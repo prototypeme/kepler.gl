@@ -4,15 +4,14 @@
 import test from 'tape-catch';
 import cloneDeep from 'lodash.clonedeep';
 import {drainTasksForTesting, succeedTaskWithValues} from 'react-palm/tasks';
-
+import {colorPaletteToColorRange} from '@kepler.gl/constants';
 import {
   getInitialInputStyle,
   keplerGlReducerCore as keplerGlReducer,
   syncTimeFilterWithLayerTimelineUpdater
 } from '@kepler.gl/reducers';
-
 import {
-  VizColorPalette,
+  KEPLER_COLOR_PALETTES,
   COMPARE_TYPES,
   DEFAULT_LAYER_OPACITY,
   DEFAULT_TEXT_LABEL,
@@ -658,12 +657,11 @@ export function mockStateWithLayerDimensions(state) {
   );
 
   const colorFieldPayload = [layer0, {colorField}, 'color'];
-
-  const colorRangePayload = [
-    layer0,
-    {colorRange: VizColorPalette.find(c => c.name === 'Uber Viz Sequential 2')},
-    'color'
-  ];
+  const colorRange = colorPaletteToColorRange(
+    KEPLER_COLOR_PALETTES.find(({name}) => name === 'Uber Viz Sequential'),
+    {steps: 4}
+  );
+  const colorRangePayload = [layer0, {colorRange}, 'color'];
 
   const textLabelField = initialState.visState.datasets[testCsvDataId].fields.find(
     f => f.name === 'date'
@@ -914,6 +912,7 @@ export const expectedSavedLayer0 = {
       elevationPercentile: [0, 100],
       elevationScale: 5,
       enableElevationZoomFactor: true,
+      fixedHeight: false,
       colorAggregation: 'count',
       sizeAggregation: 'count',
       enable3d: false
@@ -953,6 +952,7 @@ export const expectedLoadedLayer0 = {
       elevationPercentile: [0, 100],
       elevationScale: 5,
       enableElevationZoomFactor: true,
+      fixedHeight: false,
       colorAggregation: 'count',
       sizeAggregation: 'count',
       enable3d: false
@@ -963,6 +963,14 @@ export const expectedLoadedLayer0 = {
     sizeScale: 'linear',
     textLabel: [DEFAULT_TEXT_LABEL]
   }
+};
+
+// result of Uber Viz Sequential step 4
+export const expectedColorRangeInLayer = {
+  name: 'Uber Viz Sequential',
+  type: 'sequential',
+  category: 'Uber',
+  colors: ['#00939C', '#6BB5B9', '#AAD7D9', '#E6FAFA']
 };
 
 export const expectedSavedLayer1 = {
@@ -998,12 +1006,7 @@ export const expectedSavedLayer1 = {
       outline: false,
       filled: true,
       thickness: 2,
-      colorRange: {
-        name: 'Uber Viz Sequential 2',
-        type: 'sequential',
-        category: 'Uber',
-        colors: ['#E6FAFA', '#AAD7DA', '#68B4BB', '#00939C']
-      },
+      colorRange: expectedColorRangeInLayer,
       strokeColorRange: DEFAULT_COLOR_RANGE,
       strokeColor: null,
       radiusRange: [0, 50],
@@ -1047,12 +1050,7 @@ export const expectedLoadedLayer1 = {
       opacity: DEFAULT_LAYER_OPACITY,
       outline: false,
       thickness: 2,
-      colorRange: {
-        name: 'Uber Viz Sequential 2',
-        type: 'sequential',
-        category: 'Uber',
-        colors: ['#E6FAFA', '#AAD7DA', '#68B4BB', '#00939C']
-      },
+      colorRange: expectedColorRangeInLayer,
       strokeColorRange: DEFAULT_COLOR_RANGE,
       filled: true,
       strokeColor: null,
@@ -1273,6 +1271,7 @@ export const mockKeplerProps = mockKeplerPropsWithState({state: StateWLayerStyle
 // hover over data index 15
 // tested in map-container-test
 export const expectedLayerHoverProp = {
+  currentTime: null,
   data: mockKeplerProps.visState.datasets[testCsvDataId].dataContainer.row(15),
   fields: mockKeplerProps.visState.datasets[testCsvDataId].fields,
   fieldsToShow:
