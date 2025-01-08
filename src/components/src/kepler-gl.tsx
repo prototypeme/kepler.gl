@@ -110,6 +110,10 @@ const GlobalStyle = styled.div`
   .maplibregl-ctrl .maplibregl-ctrl-logo {
     display: none;
   }
+
+  .mapboxgl-ctrl .mapboxgl-ctrl-logo {
+    display: none;
+  }
 `;
 
 type BottomWidgetOuterProps = {
@@ -379,9 +383,7 @@ function KeplerGlFactory(
     };
 
     componentDidMount() {
-      if (getApplicationConfig().mapLibName === 'Mapbox') {
-        this._validateMapboxToken();
-      }
+      this._validateMapboxToken();
       this._loadMapStyle();
       if (typeof this.props.onKeplerGlInitialized === 'function') {
         this.props.onKeplerGlInitialized();
