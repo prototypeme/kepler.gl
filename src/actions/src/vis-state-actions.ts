@@ -6,6 +6,7 @@ import {PickInfo} from '@deck.gl/core/lib/deck';
 import {default as ActionTypes} from './action-types';
 import {FileCacheItem} from '@kepler.gl/processors';
 import {Layer, LayerBaseConfig} from '@kepler.gl/layers';
+import {KeplerTable} from '@kepler.gl/table';
 import {
   AddDataToMapPayload,
   ValueOf,
@@ -21,11 +22,12 @@ import {
   ParsedConfig,
   ParsedLayer,
   EffectPropsPartial,
-  SyncTimelineMode
+  SyncTimelineMode,
+  AnimationConfig,
+  FilterAnimationConfig
 } from '@kepler.gl/types';
 import {createAction} from '@reduxjs/toolkit';
 
-import {KeplerTable} from '@kepler.gl/table';
 // TODO - import LoaderObject type from @loaders.gl/core when supported
 // TODO - import LoadOptions type from @loaders.gl/core when supported
 
@@ -59,7 +61,7 @@ export function applyLayerConfig(
 
 export type LayerConfigChangeUpdaterAction = {
   oldLayer: Layer;
-  newConfig: Partial<LayerBaseConfig>;
+  newConfig: Partial<Layer['config']>;
 };
 /**
  * Update layer base config: dataId, label, column, isVisible
@@ -78,6 +80,34 @@ export function layerConfigChange(
     newConfig
   };
 }
+
+export type LayerToggleVisibilityUpdaterAction = {
+  layerId: string;
+  isVisible: boolean;
+  splitMapId?: string;
+};
+
+/**
+ * Update layer visibility depends on splitMap single or dual
+ * @param layerId - layerId to be updated
+ * @param isVisible - whether this layer is visible globally
+ * @param splitMapId - id for this splitMap
+ * @returns action
+ * @public
+ */
+export function layerToggleVisibility(
+  layerId: string,
+  isVisible: boolean,
+  splitMapId?: string
+): Merge<LayerToggleVisibilityUpdaterAction, {type: typeof ActionTypes.LAYER_TOGGLE_VISIBILITY}> {
+  return {
+    type: ActionTypes.LAYER_TOGGLE_VISIBILITY,
+    layerId,
+    isVisible,
+    splitMapId
+  };
+}
+
 export type LayerTextLabelChangeUpdaterAction = {
   oldLayer: Layer;
   idx: number | 'all';
@@ -156,7 +186,7 @@ export function layerTypeChange(
 }
 export type LayerVisualChannelConfigChangeUpdaterAction = {
   oldLayer: Layer;
-  newConfig: Partial<LayerBaseConfig>;
+  newConfig: Partial<Layer['config']>;
   channel: string;
   newVisConfig?: Partial<LayerVisConfig>;
 };
@@ -294,6 +324,29 @@ export function interactionConfigChange(
   return {
     type: ActionTypes.INTERACTION_CONFIG_CHANGE,
     config
+  };
+}
+
+export type ApplyFilterConfigUpdaterAction = {
+  filterId: string;
+  newFilter: Filter;
+};
+
+/**
+ * Update filter config
+ * @param filterId - id of the filter to be updated
+ * @param newFilter - new filter config
+ * @returns action
+ * @public
+ */
+export function applyFilterConfig(
+  filterId: string,
+  newFilter: Filter
+): Merge<ApplyFilterConfigUpdaterAction, {type: typeof ActionTypes.APPLY_FILTER_CONFIG}> {
+  return {
+    type: ActionTypes.APPLY_FILTER_CONFIG,
+    filterId,
+    newFilter
   };
 }
 
@@ -925,6 +978,23 @@ export function updateFilterAnimationSpeed(
     type: ActionTypes.UPDATE_FILTER_ANIMATION_SPEED,
     idx,
     speed
+  };
+}
+
+export type SetAnimationConfigUpdaterAction = {
+  config: AnimationConfig | FilterAnimationConfig;
+};
+/**
+ * Set animation config: works with both layer animation and filter animation
+ * @param config
+ * @returns action
+ */
+export function setAnimationConfig(
+  config: AnimationConfig | FilterAnimationConfig
+): Merge<SetAnimationConfigUpdaterAction, {type: typeof ActionTypes.SET_ANIMATION_CONFIG}> {
+  return {
+    type: ActionTypes.SET_ANIMATION_CONFIG,
+    config
   };
 }
 
@@ -1598,7 +1668,7 @@ export function setTimeFilterSyncTimelineMode({
 }
 
 export type CreateNewDatasetSuccessPayload = {
-  results: (PromiseFulfilledResult<KeplerTable<any>> | PromiseRejectedResult)[];
+  results: (PromiseFulfilledResult<KeplerTable> | PromiseRejectedResult)[];
   addToMapOptions: AddDataToMapPayload['options'];
 };
 

@@ -3,11 +3,12 @@
 
 import React, {useCallback, useEffect, useRef, useMemo, useState} from 'react';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
-import styled, {ThemeProvider} from 'styled-components';
+import styled, {ThemeProvider, StyleSheetManager} from 'styled-components';
 import window from 'global/window';
 import {connect, useDispatch} from 'react-redux';
 import cloneDeep from 'lodash.clonedeep';
 import isEqual from 'lodash.isequal';
+import isPropValid from '@emotion/is-prop-valid';
 
 import {ScreenshotWrapper} from 'react-ai-assist';
 import {
@@ -54,17 +55,33 @@ const KeplerGl = require('@kepler.gl/components').injectComponents([
 /* eslint-disable no-unused-vars */
 import sampleTripData, {testCsvData, sampleTripDataConfig} from './data/sample-trip-data';
 import sampleGeojson from './data/sample-small-geojson';
-import sampleGeojsonPoints from './data/sample-geojson-points';
+// import sampleGeojsonPoints from './data/sample-geojson-points';
 import sampleGeojsonConfig from './data/sample-geojson-config';
 import sampleH3Data, {config as h3MapConfig} from './data/sample-hex-id-csv';
 import sampleS2Data, {config as s2MapConfig, dataId as s2DataId} from './data/sample-s2-data';
-import sampleAnimateTrip, {animateTripDataId} from './data/sample-animate-trip-data';
+import sampleAnimateTrip, {
+  pointData,
+  pointDataId,
+  animateTripDataId,
+  replacePointData,
+  config as syncedTripConfig
+} from './data/sample-animate-trip-data';
 import sampleIconCsv from './data/sample-icon-csv';
 import sampleGpsData from './data/sample-gps-data';
 import sampleRowData, {config as rowDataConfig} from './data/sample-row-data';
 import {processCsvData, processGeojson, processRowObject} from '@kepler.gl/processors';
 
 /* eslint-enable no-unused-vars */
+
+// This implements the default behavior from styled-components v5
+function shouldForwardProp(propName, target) {
+  if (typeof target === 'string') {
+    // For HTML elements, forward the prop if it is a valid HTML attribute
+    return isPropValid(propName);
+  }
+  // For other elements, forward all props
+  return true;
+}
 
 const BannerHeight = 48;
 const BannerKey = `banner-${FormLink}`;
@@ -173,7 +190,7 @@ const App = props => {
     //   window.setTimeout(_showBanner, 3000);
     // }
     // load sample data
-    // _loadSampleData();
+    _loadSampleData();
 
     // Notifications
     // _loadMockNotifications();
@@ -193,7 +210,6 @@ const App = props => {
     [dispatch]
   );
 
-  // eslint-disable-next-line no-unused-vars
   const _showBanner = useCallback(() => {
     toggleShowBanner(true);
   }, [toggleShowBanner]);
@@ -220,6 +236,76 @@ const App = props => {
           }
         ],
         config: rowDataConfig
+      })
+    );
+  }, [dispatch]);
+
+  const _loadVectorTileData = useCallback(() => {
+    dispatch(
+      addDataToMap({
+        datasets: [
+          {
+            info: {
+              label: 'Railroads',
+              id: 'railroads.pmtiles',
+              color: [255, 0, 0],
+              type: 'vectorTile'
+            },
+            data: {
+              rows: [],
+              fields: [
+                {
+                  name: 'continent',
+                  type: 'string',
+                  format: '',
+                  analyzerType: 'STRING'
+                }
+              ]
+            },
+            metadata: {
+              name: 'output.pmtiles',
+              description: 'output.pmtiles',
+              type: 'pmtiles',
+              tilesetDataUrl:
+                'https://4sq-studio-public.s3.us-west-2.amazonaws.com/pmtiles-test/161727fe-7952-4e57-aa05-850b3086b0b2.pmtiles',
+              tilesetMetadataUrl:
+                'https://4sq-studio-public.s3.us-west-2.amazonaws.com/pmtiles-test/161727fe-7952-4e57-aa05-850b3086b0b2.pmtiles',
+              id: 'sz6uy1xtj',
+              format: 'rows',
+              label: 'output.pmtiles',
+              metaJson: null,
+              bounds: [-150.1122219, -51.8952777, 179.3577783, 69.6043747],
+              center: [14.0625, 50.7026397, 6],
+              maxZoom: 6,
+              minZoom: 0,
+              fields: [
+                {
+                  name: 'continent',
+                  id: 'continent',
+                  format: '',
+                  filterProps: {
+                    domain: [
+                      'Africa',
+                      'Asia',
+                      'Europe',
+                      'North America',
+                      'Oceania',
+                      'South America'
+                    ],
+                    value: [],
+                    type: 'multiSelect',
+                    gpu: false
+                  },
+                  type: 'string',
+                  analyzerType: 'STRING'
+                }
+              ]
+            }
+          }
+        ],
+        options: {
+          autoCreateLayers: true
+        }
       })
     );
   }, [dispatch]);
@@ -327,7 +413,7 @@ const App = props => {
   const _loadGeojsonData = useCallback(() => {
     // load geojson
     const geojsonPoints = processGeojson(sampleGeojsonPoints);
-    const geojsonZip = processGeojson(sampleGeojson);
+    const geojsonZip = null; // processGeojson(sampleGeojson);
     dispatch(
       addDataToMap({
         datasets: [
@@ -350,6 +436,45 @@ const App = props => {
         config: sampleGeojsonConfig as ParsedConfig
       })
     );
+  }, [dispatch]);
+
+  const _loadSyncedFilterWTripLayer = useCallback(() => {
+    dispatch(
+      addDataToMap({
+        datasets: [
+          {
+            info: {label: 'Trip animation', id: animateTripDataId},
+            data: processGeojson(sampleAnimateTrip)
+          },
+          {
+            info: {
+              label: 'Sample Taxi Trips',
+              id: pointDataId,
+              color: [255, 0, 0]
+            },
+            data: pointData
+          }
+        ],
+        config: syncedTripConfig,
+        options: {
+          centerMap: true
+        }
+      })
+    );
+  }, [dispatch]);
+
+  const _replaceSyncedFilterWTripLayer = useCallback(() => {
+    window.setTimeout(() => {
+      dispatch(
+        replaceDataInMap({
+          datasetToReplaceId: pointDataId,
+          datasetToUse: {
+            info: {label: 'Sample Taxi Trips Replaced', id: `${pointDataId}-2`},
+            data: replacePointData
+          }
+        })
+      );
+    }, 1000);
   }, [dispatch]);
 
   const _replaceData = useCallback(() => {
@@ -446,7 +571,6 @@ const App = props => {
     );
   }, []);
 
-  // eslint-disable-next-line no-unused-vars
   const _loadSampleData = useCallback(() => {
     // _loadPointData();
     // _loadGeojsonData();
@@ -457,6 +581,9 @@ const App = props => {
     // _loadScenegraphLayer();
     // _loadGpsData();
     // _loadRowData();
+    // _loadVectorTileData();
+    // _loadSyncedFilterWTripLayer();
+    // _replaceSyncedFilterWTripLayer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     _loadPointData,
@@ -468,54 +595,66 @@ const App = props => {
     _loadScenegraphLayer,
     _loadGpsData,
     _loadRowData,
-    _replaceData
+    _replaceData,
+    _loadVectorTileData,
+    _loadSyncedFilterWTripLayer,
+    _replaceSyncedFilterWTripLayer
   ]);
 
   return (
-    <ThemeProvider theme={theme}>
-      <GlobalStyle>
-        <ScreenshotWrapper
-          startScreenCapture={props.demo.aiAssistant.screenshotToAsk.startScreenCapture}
-          setScreenCaptured={_setScreenCaptured}
-          setStartScreenCapture={_setStartScreenCapture}
+    <StyleSheetManager shouldForwardProp={shouldForwardProp}>
+      <ThemeProvider theme={theme}>
+        <GlobalStyle
+        // this is to apply the same modal style as kepler.gl core
+        // because styled-components doesn't always return a node
+        // https://github.com/styled-components/styled-components/issues/617
+        // ref={node => {
+        //   node ? (this.root = node) : null;
+        // }}
         >
-          <Banner show={showBanner} height={BannerHeight} bgColor="#2E7CF6" onClose={hideBanner}>
-            <Announcement onDisable={_disableBanner} />
-          </Banner>
-          <div style={CONTAINER_STYLE}>
-            <PanelGroup direction="vertical">
-              <Panel defaultSize={isSqlPanelOpen ? 60 : 100}>
-                <AutoSizer>
-                  {({height, width}) => (
-                    <KeplerGl
-                      mapboxApiAccessToken={CLOUD_PROVIDERS_CONFIGURATION.MAPBOX_TOKEN}
-                      id="map"
-                      getState={keplerGlGetState}
-                      width={width}
-                      height={height}
-                      cloudProviders={CLOUD_PROVIDERS}
-                      localeMessages={combinedMessages}
-                      onExportToCloudSuccess={onExportFileSuccess}
-                      onLoadCloudMapSuccess={onLoadCloudMapSuccess}
-                      featureFlags={DEFAULT_FEATURE_FLAGS}
-                    />
-                  )}
-                </AutoSizer>
-              </Panel>
+          <ScreenshotWrapper
+            startScreenCapture={props.demo.aiAssistant.screenshotToAsk.startScreenCapture}
+            setScreenCaptured={_setScreenCaptured}
+            setStartScreenCapture={_setStartScreenCapture}
+          >
+            <Banner show={showBanner} height={BannerHeight} bgColor="#2E7CF6" onClose={hideBanner}>
+              <Announcement onDisable={_disableBanner} />
+            </Banner>
+            <div style={CONTAINER_STYLE}>
+              <PanelGroup direction="vertical">
+                <Panel defaultSize={isSqlPanelOpen ? 60 : 100}>
+                  <AutoSizer>
+                    {({height, width}) => (
+                      <KeplerGl
+                        mapboxApiAccessToken={CLOUD_PROVIDERS_CONFIGURATION.MAPBOX_TOKEN}
+                        id="map"
+                        getState={keplerGlGetState}
+                        width={width}
+                        height={height}
+                        cloudProviders={CLOUD_PROVIDERS}
+                        localeMessages={combinedMessages}
+                        onExportToCloudSuccess={onExportFileSuccess}
+                        onLoadCloudMapSuccess={onLoadCloudMapSuccess}
+                        featureFlags={DEFAULT_FEATURE_FLAGS}
+                      />
+                    )}
+                  </AutoSizer>
+                </Panel>
 
-              {isSqlPanelOpen && (
-                <>
-                  <StyledResizeHandle />
-                  <Panel defaultSize={40} minSize={20}>
-                    <SqlPanel initialSql={query.sql || ''} />
-                  </Panel>
-                </>
-              )}
-            </PanelGroup>
-          </div>
-        </ScreenshotWrapper>
-      </GlobalStyle>
-    </ThemeProvider>
+                {isSqlPanelOpen && (
+                  <>
+                    <StyledResizeHandle />
+                    <Panel defaultSize={40} minSize={20}>
+                      <SqlPanel initialSql={query.sql || ''} />
+                    </Panel>
+                  </>
+                )}
+              </PanelGroup>
+            </div>
+          </ScreenshotWrapper>
+        </GlobalStyle>
+      </ThemeProvider>
+    </StyleSheetManager>
   );
 };
 

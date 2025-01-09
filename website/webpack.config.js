@@ -122,7 +122,7 @@ const COMMON_CONFIG = {
   },
 
   devServer: {
-    historyApiFallback: true,
+    historyApiFallback: true
     // Add new options if needed
   },
 

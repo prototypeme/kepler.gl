@@ -4,6 +4,7 @@
 import React, {FC, useCallback, useState, ComponentType} from 'react';
 import styled from 'styled-components';
 import {rgb} from 'd3-color';
+import {format as d3Format} from 'd3-format';
 import {useIntl} from 'react-intl';
 import ColorLegendFactory, {LegendRowFactory} from '../common/color-legend';
 import RadiusLegend from '../common/radius-legend';
@@ -204,6 +205,9 @@ export function LayerColorLegendFactory(
                   disableEdit={disableEdit}
                   isFixed={isFixed}
                   mapState={mapState}
+                  labelFormat={
+                    colorField?.displayFormat ? d3Format(colorField?.displayFormat) : null
+                  }
                 />
               ) : (
                 <SingleColorLegend
@@ -295,6 +299,7 @@ export type LayerLegendHeaderProps = {
   options?: {
     showLayerName?: boolean;
   };
+  isExport?: boolean;
 };
 
 const isRadiusChannel = visualChannel =>
@@ -340,7 +345,7 @@ export function LayerLegendContentFactory(
   }) => {
     const visualChannels = layer.getLegendVisualChannels();
     const channelKeys = Object.values(visualChannels);
-    const colorChannels = channelKeys.filter(isColorChannel);
+    const colorChannels = channelKeys.filter(isColorChannel) as VisualChannel[];
     const nonColorChannels = channelKeys.filter(vc => !isColorChannel(vc));
     const width = containerW - 2 * DIMENSIONS.mapControl.padding;
 
@@ -372,7 +377,7 @@ export function LayerLegendContentFactory(
             actionIcons={actionIcons}
           />
         ))}
-        {nonColorChannels.map(visualChannel => {
+        {nonColorChannels.map((visualChannel: VisualChannel) => {
           const matchCondition = !visualChannel.condition || visualChannel.condition(layer.config);
           const enabled = layer.config[visualChannel.field] || visualChannel.defaultMeasure;
 
@@ -416,7 +421,7 @@ export type MapLegendProps = {
   disableEdit?: boolean;
   isExport?: boolean;
   onLayerVisConfigChange?: (oldLayer: Layer, newVisConfig: Partial<LayerVisConfig>) => void;
-  actionIcons: MapLegendIcons;
+  actionIcons?: MapLegendIcons;
 };
 
 MapLegendFactory.deps = [LayerLegendHeaderFactory, LayerLegendContentFactory];
@@ -435,15 +440,7 @@ function MapLegendFactory(
     onLayerVisConfigChange,
     actionIcons = defaultActionIcons
   }) => (
-    <div
-      className="map-legend"
-      {...(mapState?.height && {
-        style: {
-          /* subtracting rough size of 4 map control buttons and padding */
-          maxHeight: mapState.height - (isExport ? 0 : 250)
-        }
-      })}
-    >
+    <div className="map-legend">
       {layers.map((layer, index) => {
         if (!layer.isValidToSave() || layer.config.hidden) {
           return null;
@@ -457,7 +454,7 @@ function MapLegendFactory(
             key={index}
             width={containerW}
           >
-            <LayerLegendHeader options={options} layer={layer} />
+            <LayerLegendHeader isExport={isExport} options={options} layer={layer} />
             <LayerLegendContent
               containerW={containerW}
               layer={layer}

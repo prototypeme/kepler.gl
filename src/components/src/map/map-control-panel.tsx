@@ -2,13 +2,14 @@
 // Copyright contributors to the kepler.gl project
 
 import React, {useCallback} from 'react';
-import styled, {StyledComponent} from 'styled-components';
+import styled from 'styled-components';
 import {FormattedMessage} from '@kepler.gl/localization';
 import {CenterFlexbox, IconRoundSmall} from '../common/styled-components';
 import {Close, Pin} from '../common/icons';
 import Switch from '../common/switch';
 import {MapState} from '@kepler.gl/types';
 import {ActionHandler, toggleSplitMapViewport} from '@kepler.gl/actions';
+import classNames from 'classnames';
 
 const StyledMapControlPanel = styled.div`
   background-color: ${props => props.theme.mapPanelBackgroundColor};
@@ -58,14 +59,7 @@ const StyledMapControlPanelHeader = styled.div.attrs({
   }
 `;
 
-const StyledMapControlPanelHeaderSplitViewportsTools: StyledComponent<
-  'div',
-  any,
-  {
-    className: 'map-control__panel-split-viewport-tools';
-  },
-  'className'
-> = styled(StyledMapControlPanelHeader).attrs({
+const StyledMapControlPanelHeaderSplitViewportsTools = styled(StyledMapControlPanelHeader).attrs({
   className: 'map-control__panel-split-viewport-tools'
 })`
   display: flex;
@@ -99,7 +93,7 @@ const StyledIcon = styled(IconRoundSmall)`
   color: ${props => props.theme.activeColor};
   background-color: transparent;
 
-  :hover {
+  &:hover {
     cursor: pointer;
     background-color: transparent;
     color: ${props => props.theme.floatingBtnActColor};
@@ -154,7 +148,7 @@ function MapControlPanelFactory() {
             transform: `scale(${scale})`,
             marginBottom: '8px !important'
           }}
-          className={className}
+          className={classNames('map-control-panel', className)}
         >
           {mapState?.isSplit && isViewportUnsyncAllowed ? (
             <StyledMapControlPanelHeaderSplitViewportsTools>

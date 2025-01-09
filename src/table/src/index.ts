@@ -12,6 +12,14 @@ export {
   maybeToDate
 } from './kepler-table';
 /* eslint-disable prettier/prettier */
-export type {FilterProps, GpuFilter, Datasets, BooleanFieldFilterProps} from './kepler-table';
+export type {
+  BooleanFieldFilterProps,
+  Datasets,
+  FilterProps,
+  GpuFilter,
+  NumericFieldFilterProps,
+  StringFieldFilterProps,
+  TimeFieldFilterProps
+} from './kepler-table';
 export * from './gpu-filter-utils';
 export * from './dataset-utils';

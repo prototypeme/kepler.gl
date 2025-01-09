@@ -3,9 +3,9 @@
 
 import React, {MouseEvent, useCallback, useMemo} from 'react';
 import styled from 'styled-components';
-import {KEPLER_COLOR_PALETTES, PALETTE_TYPES, ColorRange, ColorPalette} from '@kepler.gl/constants';
+import {KEPLER_COLOR_PALETTES, PALETTE_TYPES, ColorPalette} from '@kepler.gl/constants';
 import {FormattedMessage} from '@kepler.gl/localization';
-import {ColorUI, NestedPartial} from '@kepler.gl/types';
+import {ColorRange, ColorUI, NestedPartial} from '@kepler.gl/types';
 import {
   hasColorMap,
   updateColorRangeBySelectedPalette,
@@ -289,7 +289,7 @@ const StyledColorRange = styled.div.attrs({
   className: 'color-palette-outer'
 })`
   padding: 0 8px;
-  :hover {
+  &:hover {
     background-color: ${props => props.theme.panelBackgroundHover};
     cursor: pointer;
   }

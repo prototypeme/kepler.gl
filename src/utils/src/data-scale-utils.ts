@@ -2,16 +2,30 @@
 // Copyright contributors to the kepler.gl project
 
 import {bisectLeft, quantileSorted as d3Quantile, extent} from 'd3-array';
+import uniq from 'lodash.uniq';
 import moment from 'moment';
 
-import {notNullorUndefined} from '@kepler.gl/common-utils';
-import {ALL_FIELD_TYPES, ColorMap, ColorRange, SCALE_FUNC, SCALE_TYPES} from '@kepler.gl/constants';
-import {Layer, VisualChannel, VisualChannelDomain} from '@kepler.gl/layers';
-import {HexColor, MapState} from '@kepler.gl/types';
+import {notNullorUndefined, toArray} from '@kepler.gl/common-utils';
+import {ALL_FIELD_TYPES, SCALE_FUNC, SCALE_TYPES, NO_VALUE_COLOR} from '@kepler.gl/constants';
+// import {FilterProps, KeplerTable} from '@kepler.gl/layers';
+import {
+  AggregatedBin,
+  ColorMap,
+  ColorRange,
+  HexColor,
+  KeplerLayer as Layer,
+  MapState,
+  VisualChannel,
+  VisualChannelDomain,
+  RGBColor,
+  RGBAColor,
+  ColorUI,
+  Field
+} from '@kepler.gl/types';
 
-import {isRgbColor, rgbToHex} from './color-utils';
+import {isRgbColor, rgbToHex, hexToRgb} from './color-utils';
 import {DataContainerInterface} from './data-container-interface';
-import {formatNumber, reverseFormatNumber, unique} from './data-utils';
+import {formatNumber, isNumber, reverseFormatNumber, unique} from './data-utils';
 import {getTimeWidgetHintFormatter} from './filter-utils';
 import {isPlainObject} from './utils';
 
@@ -23,12 +37,16 @@ export type ColorBreak = {
 };
 export type ColorBreakOrdinal = {
   data: HexColor;
-  label: string;
+  label: string | number | string[] | number[] | null;
 };
 
 export type D3ScaleFunction = Record<string, any> & ((x: any) => any);
 
-export type LabelFormat = (n: number) => string;
+// TODO isolate types - depends on @kepler.gl/layers
+type FilterProps = any;
+type KeplerTable = any;
+
+export type LabelFormat = (n: number, type?: string) => string;
 type dataValueAccessor = <T>(param: T) => T;
 type dataContainerValueAccessor = (d: {index: number}, dc: DataContainerInterface) => any;
 type sort = (a: any, b: any) => any;
@@ -216,8 +234,12 @@ export function getQuantLegends(scale: D3ScaleFunction, labelFormat: LabelFormat
   if (typeof scale.invertExtent !== 'function') {
     return [];
   }
+  const thresholdLabelFormat = (n, type) =>
+    n && labelFormat ? labelFormat(n) : n ? formatNumber(n, type) : 'no value';
   const labels =
-    scale.scaleType === 'threshold' || scale.scaleType === 'custom'
+    scale.scaleType === 'threshold'
+      ? getThresholdLabels(scale, thresholdLabelFormat)
+      : scale.scaleType === 'custom'
       ? getThresholdLabels(scale, customScaleLabelFormat)
       : getScaleLabels(scale, labelFormat);
 
@@ -256,7 +278,7 @@ export function getQuantLabelFormat(domain, fieldType) {
     ? getTimeLabelFormat(domain)
     : !fieldType
     ? defaultFormat
-    : n => formatNumber(n, fieldType);
+    : n => (isNumber(n) ? formatNumber(n, fieldType) : 'no value');
 }
 
 /**
@@ -276,7 +298,11 @@ export function getLegendOfScale({
   if (!scale || scale.byZoom) {
     return [];
   }
-  if (scaleType === SCALE_TYPES.ordinal) {
+  if (
+    scaleType === SCALE_TYPES.ordinal ||
+    scaleType === SCALE_TYPES.customOrdinal ||
+    fieldType === ALL_FIELD_TYPES.string
+  ) {
     return getOrdinalLegends(scale);
   }
 
@@ -322,8 +348,11 @@ export function initializeLayerColorMap(layer: Layer, visualChannel: VisualChann
     layer
   });
 
-  const colorBreaks = getLegendOfScale({scale, scaleType, fieldType: field.type});
-
+  const colorBreaks = getLegendOfScale({
+    scale: scale?.byZoom ? scale(0) : scale,
+    scaleType,
+    fieldType: field.type
+  });
   return colorBreaksToColorMap(colorBreaks);
 }
 
@@ -344,6 +373,71 @@ export function getVisualChannelScaleByZoom({
     scale = Number.isFinite(z) ? scale(z) : null;
   }
   return scale;
+}
+
+/**
+ * Get categorical colorMap from colors and domain (unique values)
+ */
+export function getCategoricalColorMap(
+  colors: string[],
+  domain: (string | number | string[] | number[] | null)[]
+): any {
+  // colorMap: [string | string[], hexstring]
+  const colorToUniqueValues = {};
+  const uniqueValues = unique(domain).filter(notNullorUndefined).sort();
+  // each unique value assign to a color, the rest unique values assign to last color
+  const lastColor = colors[colors.length - 1];
+  for (let i = 0; i < uniqueValues.length; ++i) {
+    if (i < colors.length) {
+      colorToUniqueValues[colors[i]] = uniqueValues[i];
+    } else {
+      colorToUniqueValues[lastColor] = [
+        ...(Array.isArray(colorToUniqueValues[lastColor])
+          ? colorToUniqueValues[lastColor]
+          : [colorToUniqueValues[lastColor]]),
+        uniqueValues[i]
+      ];
+    }
+  }
+
+  const colorMap = colors.map(color => {
+    if (color in colorToUniqueValues) {
+      return [colorToUniqueValues[color], color];
+    }
+    return [null, color];
+  });
+
+  return colorMap;
+}
+
+/**
+ * Get categorical colorBreaks from colorMap
+ */
+export function colorMapToCategoricalColorBreaks(
+  colorMap?: ColorMap | null
+): ColorBreakOrdinal[] | null {
+  if (!colorMap) {
+    return null;
+  }
+  const colorBreaks = colorMap.map(([value, color], i) => {
+    return {
+      data: color,
+      label: value
+    };
+  });
+
+  return colorBreaks;
+}
+
+/**
+ * create categorical colorMap from colorBreaks
+ */
+export function colorBreaksToCategoricalColorMap(colorBreaks: ColorBreakOrdinal[]): ColorMap {
+  // colorMap: [string | string[], hexstring]
+  const colors = uniq(colorBreaks.map(cb => cb.data));
+  const values = uniq(colorBreaks.map(cb => cb.label));
+
+  return getCategoricalColorMap(colors, values);
 }
 
 /**
@@ -369,7 +463,7 @@ export function colorBreaksToColorMap(colorBreaks: ColorBreak[] | ColorBreakOrdi
 /**
  * Convert colorRange.colorMap into color breaks UI input
  */
-export function colorMapToColorBreaks(colorMap?: ColorMap): ColorBreak[] | null {
+export function colorMapToColorBreaks(colorMap?: ColorMap | null): ColorBreak[] | null {
   if (!colorMap) {
     return null;
   }
@@ -406,5 +500,237 @@ export function colorMapToColorBreaks(colorMap?: ColorMap): ColorBreak[] | null 
  * Whether color breaks is for numeric field
  */
 export function isNumericColorBreaks(colorBreaks: unknown): colorBreaks is ColorBreak[] {
-  return Array.isArray(colorBreaks) && colorBreaks.length && colorBreaks[0].inputs;
+  return Boolean(Array.isArray(colorBreaks) && colorBreaks.length && colorBreaks[0].inputs);
+}
+
+// return domainMin, domainMax, histogramMean
+export function getHistogramDomain({
+  aggregatedBins,
+  columnStats,
+  dataset,
+  fieldValueAccessor
+}: {
+  aggregatedBins?: AggregatedBin[];
+  columnStats?: FilterProps['columnStats'];
+  dataset?: KeplerTable;
+  fieldValueAccessor: (idx: unknown) => number;
+}) {
+  let domainMin = Number.POSITIVE_INFINITY;
+  let domainMax = Number.NEGATIVE_INFINITY;
+  let nValid = 0;
+  let domainSum = 0;
+
+  if (aggregatedBins) {
+    Object.values(aggregatedBins).forEach(bin => {
+      const val = bin.value;
+      if (isNumber(val)) {
+        if (val < domainMin) domainMin = val;
+        if (val > domainMax) domainMax = val;
+        domainSum += val;
+        nValid += 1;
+      }
+    });
+  } else {
+    if (columnStats && columnStats.quantiles && columnStats.mean) {
+      // no need to recalcuate min/max/mean if its already in columnStats
+      return [
+        columnStats.quantiles[0].value,
+        columnStats.quantiles[columnStats.quantiles.length - 1].value,
+        columnStats.mean
+      ];
+    }
+    if (dataset && fieldValueAccessor) {
+      dataset.allIndexes.forEach((x, i) => {
+        const val = fieldValueAccessor(x);
+        if (isNumber(val)) {
+          if (val < domainMin) domainMin = val;
+          if (val > domainMax) domainMax = val;
+          domainSum += val;
+          nValid += 1;
+        }
+      });
+    }
+  }
+  const histogramMean = nValid > 0 ? domainSum / nValid : 0;
+  return [nValid > 0 ? domainMin : 0, nValid > 0 ? domainMax : 0, histogramMean];
+}
+
+export function resetCategoricalColorMapByIndex(colorMap: ColorMap, index: number): any {
+  if (!colorMap) {
+    return colorMap;
+  }
+  const newColorMap = colorMap.map((cm, i) => {
+    if (i === index) {
+      return [null, cm[1]];
+    }
+    return cm;
+  });
+  return newColorMap;
+}
+
+/**
+ * select rest categorical values for a colorMap by its index
+ */
+export function selectRestCategoricalColorMapByIndex(
+  colorMap: ColorMap | null,
+  index: number,
+  uniqueValues?: number[] | string[]
+): ColorMap | undefined | null {
+  if (!colorMap || !uniqueValues) {
+    return colorMap;
+  }
+
+  // find unique values that has not been used in current colorMap
+  const uniqValueDict = Object.fromEntries(uniqueValues.map(val => [val, false]));
+  colorMap.forEach(cm => {
+    toArray(cm[0]).forEach(v => {
+      if (v) uniqValueDict[v] = true;
+    });
+  });
+  const rest = Object.keys(uniqValueDict).filter(v => !uniqValueDict[v]);
+
+  // use the not used unique values in the selected color map
+  const newColorMap = colorMap.map((cm, i) => {
+    if (i === index) {
+      return [[...rest, ...toArray(cm[0])], cm[1]];
+    }
+    return cm;
+  }) as ColorMap;
+
+  return newColorMap;
+}
+
+/**
+ * remove a categorical value from a colorMap by its index
+ */
+export function removeCategoricalValueFromColorMap(
+  colorMap: ColorMap | null | undefined,
+  item: number | string,
+  index: number
+): ColorMap | null | undefined {
+  if (!colorMap) {
+    return colorMap;
+  }
+  const newColorMap = colorMap.map((cm, i) => {
+    if (i === index) {
+      if (!cm[0]) {
+        return [null, cm[1]];
+      }
+      const currentUniqueValues = toArray(cm[0]);
+      const updatedUniqueValues = currentUniqueValues.filter(v => v !== item);
+      return [updatedUniqueValues, cm[1]];
+    }
+    return cm;
+  }) as ColorMap;
+
+  return newColorMap;
+}
+
+/**
+ * add categorical values (from multisel dropdown) to a colorMap by its index
+ */
+export function addCategoricalValuesToColorMap(
+  colorMap: ColorMap,
+  items: (string | number)[],
+  index: number
+): ColorMap {
+  if (!colorMap) {
+    return colorMap;
+  }
+
+  const newColorMap = colorMap.map((cm, i) => {
+    if (i === index) {
+      if (!cm[0]) {
+        return [items, cm[1]];
+      }
+      const currentUniqueValues = toArray(cm[0]);
+      const updatedUniqueValues = uniq(currentUniqueValues.concat(items));
+      return [updatedUniqueValues, cm[1]];
+    }
+    // remove value from other colorMap
+    const currentUniqueValues = cm[0];
+    if (Array.isArray(currentUniqueValues)) {
+      const updatedUniqueValues: string[] | number[] = (currentUniqueValues as any[]).filter(
+        v => !items.includes(v)
+      );
+      return [updatedUniqueValues, cm[1]];
+    } else if (currentUniqueValues && items.includes(currentUniqueValues)) {
+      return [null, cm[1]];
+    }
+
+    return cm;
+  }) as ColorMap;
+
+  return newColorMap;
+}
+
+/**
+ * get a color scale func for categorical (custom ordinal) scale
+ */
+export function getCategoricalColorScale(
+  colorDomain: number[] | string[],
+  colorRange: ColorRange,
+  useRgb = true
+): (categoryValue: string | number) => RGBColor | RGBAColor {
+  const cMap = colorRange.colorMap
+    ? colorRange.colorMap
+    : getCategoricalColorMap(colorRange.colors, colorDomain);
+
+  const range: number[][] = [];
+  const domain: string[] = [];
+  cMap.forEach(cm => {
+    if (Array.isArray(cm[0])) {
+      cm[0].forEach(val => {
+        domain.push(val);
+        range.push(useRgb ? hexToRgb(cm[1]) : cm[1]);
+      });
+    } else {
+      domain.push(cm[0]);
+      range.push(useRgb ? hexToRgb(cm[1]) : cm[1]);
+    }
+  });
+
+  const scale = getScaleFunction(SCALE_TYPES.customOrdinal, range, domain, false);
+  scale.unknown(NO_VALUE_COLOR);
+  return scale as any;
+}
+
+/**
+ * initialize customPalette by custom scale or customOrdinal scale
+ */
+export function initCustomPaletteByCustomScale({
+  scale,
+  field,
+  ordinalDomain,
+  range,
+  colorBreaks
+}: {
+  scale: string;
+  field: Field;
+  ordinalDomain?: number[] | string[];
+  range: ColorRange;
+  colorBreaks: ColorBreakOrdinal[] | null;
+}): ColorUI['customPalette'] {
+  const customPaletteName = `color.customPalette.${scale}.${field.name}`;
+  // reuse range.colorMap if the field and scale not changed
+  const reuseColorMap = range.colorMap && range.name === customPaletteName && range.type === scale;
+  const colorMap = reuseColorMap
+    ? range.colorMap
+    : scale === SCALE_TYPES.customOrdinal && ordinalDomain
+    ? getCategoricalColorMap(range.colors, ordinalDomain)
+    : colorBreaks && isNumericColorBreaks(colorBreaks)
+    ? colorBreaksToColorMap(colorBreaks)
+    : null;
+  const colors = reuseColorMap ? range.colors : colorMap ? colorMap.map(cm => cm[1]) : range.colors;
+
+  // update custom breaks
+  const customPalette: ColorUI['customPalette'] = {
+    category: 'Custom',
+    name: customPaletteName,
+    type: scale,
+    colorMap,
+    colors: colors || []
+  };
+
+  return customPalette;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright contributors to the kepler.gl project
 
-import React, {useCallback, useMemo, useState, useEffect, CSSProperties} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState, CSSProperties} from 'react';
 import styled, {withTheme} from 'styled-components';
 import RangeBrushFactory, {OnBrush, RangeBrushProps} from './range-brush';
 import HistogramPlotFactory from './histogram-plot';
@@ -16,7 +16,7 @@ import {Datasets} from '@kepler.gl/table';
 const StyledRangePlot = styled.div`
   margin-bottom: ${props => props.theme.sliderBarHeight}px;
   display: flex;
-  position: 'relative';
+  position: relative;
 `;
 
 interface RangePlotProps {
@@ -57,6 +57,13 @@ const isHistogramPlot = plotType => plotType?.type === PLOT_TYPES.histogram;
 const isLineChart = plotType => plotType?.type === PLOT_TYPES.lineChart;
 const hasHistogram = (plotType, bins) => isHistogramPlot(plotType) && bins;
 const hasLineChart = (plotType, lineChart) => isLineChart(plotType) && lineChart;
+
+const LOADING_SPINNER_CONTAINER_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100%'
+};
 
 export default function RangePlotFactory(
   RangeBrush: ReturnType<typeof RangeBrushFactory>,
@@ -160,7 +167,9 @@ export default function RangePlotFactory(
     );
   };
 
-  const RangePlotWithTheme = withTheme(RangePlot);
+  const RangePlotWithTheme = withTheme(RangePlot) as React.FC<
+    RangePlotProps & Partial<RangeBrushProps>
+  >;
 
   // a container to render spinner or message when the data is too big
   // to generate a plot
@@ -174,36 +183,39 @@ export default function RangePlotFactory(
     ...otherProps
   }: WithPlotLoadingProps) => {
     const [isLoading, setIsLoading] = useState(false);
-    // eslint-disable-next-line complexity
+    const isChangingRef = useRef(false);
+
     useEffect(() => {
-      if (!plotType && !isLoading) {
-        // if plotType is undefined. this shouldn't happen
-        setIsLoading(true);
-        setFilterPlot({
-          plotType: {
-            type: PLOT_TYPES.histogram
-          }
-        });
-      } else if (isHistogramPlot(plotType) && !bins && !isLoading) {
-        setIsLoading(true);
-        // load histogram
-        setFilterPlot({
-          plotType: {
-            type: PLOT_TYPES.histogram
-          }
-        });
-      } else if (isLineChart(plotType) && !lineChart && !isLoading) {
-        // load line chart
-        setIsLoading(true);
-        setFilterPlot({
-          plotType: {
-            type: PLOT_TYPES.lineChart
-          }
-        });
-      } else if (isLoading && (hasHistogram(plotType, bins) || hasLineChart(plotType, lineChart))) {
-        setIsLoading(false);
+      if (isChangingRef.current) {
+        if (hasHistogram(plotType, bins)) {
+          // Bins are loaded
+          isChangingRef.current = false;
+        }
+      } else {
+        if (!plotType || (isHistogramPlot(plotType) && !bins)) {
+          // load histogram
+          setIsLoading(true);
+          setFilterPlot({plotType: {type: PLOT_TYPES.histogram}});
+          isChangingRef.current = true;
+        }
       }
-    }, [plotType, bins, lineChart, setFilterPlot, isLoading, setIsLoading]);
+    }, [bins, plotType, setFilterPlot]);
+
+    useEffect(() => {
+      if (isChangingRef.current) {
+        if (hasLineChart(plotType, lineChart)) {
+          // Line chart is loaded
+          isChangingRef.current = false;
+        }
+      } else {
+        if (isLineChart(plotType) && !lineChart) {
+          // load line chart
+          setIsLoading(true);
+          setFilterPlot({plotType: {type: PLOT_TYPES.lineChart}});
+          isChangingRef.current = true;
+        }
+      }
+    }, [lineChart, plotType, setFilterPlot]);
 
     const rangePlotStyle = useMemo(
       () => ({
@@ -221,14 +233,7 @@ export default function RangePlotFactory(
     return (
       <StyledRangePlot style={rangePlotStyle} className="kg-range-slider__plot">
         {isLoading ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%'
-            }}
-          >
+          <div style={LOADING_SPINNER_CONTAINER_STYLE}>
             <LoadingSpinner borderColor="transparent" size={40} />
           </div>
         ) : (
@@ -245,5 +250,5 @@ export default function RangePlotFactory(
     );
   };
 
-  return withTheme(WithPlotLoading);
+  return withTheme(WithPlotLoading) as React.FC<Omit<WithPlotLoadingProps, 'theme'>>;
 }

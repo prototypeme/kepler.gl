@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: MIT
 // Copyright contributors to the kepler.gl project
 
-import React from 'react';
+import React, {useMemo} from 'react';
 import {HexColor, RGBColor} from '@kepler.gl/types';
-import styled from 'styled-components';
+import styled, {IStyledComponent} from 'styled-components';
 import classnames from 'classnames';
+import {BaseComponentProps} from '../../types';
 
-type ColorPaletteProps = {
+type ColorPaletteProps = BaseComponentProps & {
   colors: RGBColor | HexColor[];
+  colorWidths?: number[] | null;
   height?: number;
-  className?: string;
   isSelected?: boolean;
   isReversed?: boolean;
+  className?: string;
 };
 
 const PaletteWrapper = styled.div.attrs({
@@ -25,15 +27,22 @@ const PaletteWrapper = styled.div.attrs({
   overflow: hidden;
 `;
 
-const PaletteContainer = styled.div.attrs(props => ({
-  className: classnames('color-range-palette', props.className)
-}))<{isSelected?: boolean}>`
+export type PaletteContainerProps = BaseComponentProps & {
+  isColorChart?: boolean;
+  isSelected?: boolean;
+};
+
+const PaletteContainer: IStyledComponent<'web', PaletteContainerProps> = styled.div.attrs(
+  props => ({
+    className: classnames('color-range-palette', props.className)
+  })
+)<PaletteContainerProps>`
   display: flex;
   flex-grow: 1;
-  border-width: 1px;
+  border-width: ${props => (props.isColorChart ? '0px' : '1px')};
   border-style: solid;
   border-color: ${props => (props.isSelected ? '#FFFFFF' : 'transparent')};
-  padding: 4px;
+  padding: ${props => (props.isColorChart ? '0px' : '4px')};
   border-radius: 4px;
 `;
 
@@ -43,20 +52,38 @@ const StyledColorBlock = styled.div.attrs({
   flex-grow: 1;
 `;
 
-const ColorPalette: React.FC<ColorPaletteProps> = ({
+const ColorPalette = ({
   colors = [],
   height = 10,
+  colorWidths = null,
   className = '',
   isSelected = false,
   isReversed = false
-}) => (
-  <PaletteContainer className={className} isSelected={isSelected}>
-    <PaletteWrapper style={{height, transform: `scale(${isReversed ? -1 : 1}, 1)`}}>
-      {colors.map((color: number | string, index: number) => (
-        <StyledColorBlock key={`${color}-${index}`} style={{backgroundColor: String(color)}} />
-      ))}
-    </PaletteWrapper>
-  </PaletteContainer>
-);
+}: ColorPaletteProps) => {
+  const paletteWrapperStyle = useMemo(
+    () => ({height, transform: `scale(${isReversed ? -1 : 1}, 1)`}),
+    [height, isReversed]
+  );
+  return (
+    <PaletteContainer
+      className={className}
+      isSelected={isSelected}
+      isColorChart={Boolean(colorWidths)}
+    >
+      <PaletteWrapper style={paletteWrapperStyle}>
+        {colors.map((color: number | string, index: number) =>
+          colorWidths && colorWidths[index] ? (
+            <StyledColorBlock
+              key={`${color}-${index}`}
+              style={{backgroundColor: String(color), width: colorWidths[index]}}
+            />
+          ) : (
+            <StyledColorBlock key={`${color}-${index}`} style={{backgroundColor: String(color)}} />
+          )
+        )}
+      </PaletteWrapper>
+    </PaletteContainer>
+  );
+};
 
 export default ColorPalette;

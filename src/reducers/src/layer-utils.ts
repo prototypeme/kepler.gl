@@ -14,6 +14,8 @@ import {
   Editor,
   Feature,
   FeatureSelectionContext,
+  BindedLayerCallbacks,
+  LayerCallbacks,
   Viewport
 } from '@kepler.gl/types';
 import {
@@ -84,12 +86,11 @@ export function findDefaultLayer(dataset: KeplerTable, layerClasses: LayerClasse
         }))
       );
     },
-    [] as LayerClassesType[keyof LayerClassesType][]
+    [] as (LayerClassesType[keyof LayerClassesType] & {type: string})[]
   );
 
   // go through all layerProps to create layer
   return layerProps.map(props => {
-    // @ts-expect-error TODO: checking props.type !== null
     const layer = new layerClasses[props.type](props);
     return typeof layer.setInitialLayerConfig === 'function' && dataset.dataContainer
       ? layer.setInitialLayerConfig(dataset)
@@ -345,27 +346,15 @@ export type ComputeDeckLayersProps = {
 export function bindLayerCallbacks(
   layerCallbacks: LayerCallbacks = {},
   idx: number
-): Record<string, (idx: number, val: any) => void> {
+): BindedLayerCallbacks {
   return Object.keys(layerCallbacks).reduce(
     (accu, key) => ({
       ...accu,
       [key]: val => layerCallbacks[key](idx, val)
     }),
-    {} as Record<string, (_idx: number, val: any) => void>
+    {} as Record<string, (val: unknown) => void>
   );
 }
-
-export type LayerCallbacks = {
-  onLayerHover?: (idx: number, value: any) => void;
-  onSetLayerDomain?: (idx: number, value: any) => void;
-  onFilteredItemsChange?: (
-    idx: number,
-    event: {
-      id: string;
-      count: number;
-    }
-  ) => void;
-};
 
 // eslint-disable-next-line complexity
 export function computeDeckLayers(
@@ -483,4 +472,13 @@ export function addLayerToLayerOrder(
   layerId: string
 ): string[] {
   return [layerId, ...layerOrder];
+}
+
+export function getLayerHoverPropValue(
+  data: DataRow | AggregationLayerHoverData | null | undefined,
+  fieldIndex: number
+) {
+  if (!data) return undefined;
+  if (data instanceof DataRow) return data.valueAt(fieldIndex);
+  return data[fieldIndex];
 }

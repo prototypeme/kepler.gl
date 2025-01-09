@@ -4,15 +4,22 @@
 import {
   CategoricalPalette,
   ColorPalette,
-  ColorRange,
+  DEFAULT_CUSTOM_PALETTE,
   colorPaletteToColorRange
 } from '@kepler.gl/constants';
-import {ColorRangeConfig, HexColor, RGBColor} from '@kepler.gl/types';
+import {
+  ColorMap,
+  ColorRange,
+  ColorRangeConfig,
+  HexColor,
+  RGBAColor,
+  RGBColor
+} from '@kepler.gl/types';
 import {rgb as d3Rgb} from 'd3-color';
 import {interpolate} from 'd3-interpolate';
 import {arrayInsert, arrayMove} from './utils';
 import Console from 'global/console';
-import {KEPLER_COLOR_PALETTES, PALETTE_TYPES} from '@kepler.gl/constants';
+import {KEPLER_COLOR_PALETTES, PALETTE_TYPES, SCALE_TYPES} from '@kepler.gl/constants';
 
 /**
  * get r g b from hex code
@@ -51,7 +58,7 @@ function PadNum(c) {
  * @param rgb
  * @returns hex string
  */
-export function rgbToHex([r, g, b]: RGBColor): HexColor {
+export function rgbToHex([r, g, b]: RGBColor | RGBAColor): HexColor {
   return `#${[r, g, b].map(n => PadNum(n)).join('')}`.toUpperCase();
 }
 
@@ -134,6 +141,17 @@ export function interpolateHex(hex1: HexColor, hex2: HexColor): HexColor {
   return d3Rgb(interpolate(hex1, hex2)(0.5)).hex().toUpperCase();
 }
 
+function addNewCategoricalStepAtIndex(colorMap, index, newColor) {
+  if (!Array.isArray(colorMap) || !colorMap.length) {
+    return colorMap;
+  }
+
+  let newColorMap = colorMap.map(([val, c]) => [Array.isArray(val) ? [...val] : val, c]);
+  newColorMap = arrayInsert(newColorMap, index + 1, [null, newColor]);
+
+  return newColorMap;
+}
+
 export function addNewQuantativeColorBreakAtIndex(colorMap, index, newColors) {
   if (!Array.isArray(colorMap) || !colorMap.length) {
     return colorMap;
@@ -177,7 +195,10 @@ export function addCustomPaletteColor(customPalette: ColorRange, index: number):
 
   // add color to colorMap
   if (colorMap) {
-    update.colorMap = addNewQuantativeColorBreakAtIndex(colorMap, index, update.colors);
+    update.colorMap =
+      customPalette.type === 'customOrdinal'
+        ? addNewCategoricalStepAtIndex(colorMap, index, newColor)
+        : addNewQuantativeColorBreakAtIndex(colorMap, index, update.colors);
   }
 
   return {
@@ -365,27 +386,46 @@ export function updateColorRangeByMatchingPalette(
 }
 
 /**
- * Update color range after selecting a palette from color range selectoer
- * Copy over colorMap and colorLegends
+ * Update custom palette when reverse the colors in custom palette, since changing 'steps',
+ * 'colorBindSafe', 'type' should fall back to predefined palette.
  */
-export function updateColorRangeBySelectedPalette(
+export function updateCustomColorRangeByColorUI(
   oldColorRange: ColorRange,
-  colorPalette: ColorPalette,
-  colorConfig: {
-    reversed: boolean;
-    steps: number;
-  }
+  colorConfig: ColorRangeConfig
 ): ColorRange {
-  // const {reversed} = colorConfig;
+  const {reversed} = colorConfig;
+  const colors = oldColorRange.colors;
+  // for custom palette, one can only 'reverse' the colors in custom palette.
+  colors.reverse();
 
   const colorRange = {
-    ...colorPaletteToColorRange(colorPalette, colorConfig),
-    // ...(reversed ? {reversed} : {}),
+    name: oldColorRange.name,
+    type: oldColorRange.type,
+    category: oldColorRange.category,
+    colors,
+    ...(reversed ? {reversed} : {}),
     ...(oldColorRange.colorMap ? {colorMap: oldColorRange.colorMap} : {}),
     ...(oldColorRange.colorLegends ? {colorLegends: oldColorRange.colorLegends} : {})
   };
 
   return replaceColorsInColorRange(colorRange, colorRange.colors);
+}
+
+/**
+ * Update color range after selecting a palette from color range selectoer
+ * Copy over colorMap and colorLegends
+ */
+export function updateColorRangeBySelectedPalette(oldColorRange, colorPalette, colorConfig) {
+  const {colors: newColors, ...newColorRange} = colorPaletteToColorRange(colorPalette, colorConfig);
+
+  const colorRange = {
+    colors: oldColorRange.colors,
+    ...newColorRange,
+    ...(oldColorRange.colorMap ? {colorMap: oldColorRange.colorMap} : {}),
+    ...(oldColorRange.colorLegends ? {colorLegends: oldColorRange.colorLegends} : {})
+  };
+
+  return replaceColorsInColorRange(colorRange, newColors);
 }
 
 const UberNameRegex = new RegExp(/^([A-Za-z ])+/g);
@@ -422,4 +462,24 @@ export function colorRangeBackwardCompatibility(colorRange: ColorRange): ColorRa
   }
 
   return colorRange;
+}
+
+/**
+ * Initialize custom palette from current standard color range object
+ */
+export function initializeCustomPalette(colorRange: ColorRange, colorMap?: ColorMap): ColorRange {
+  // TODO: check on `isReversed` key, whether we can remove it here
+  const customPalette = {
+    ...colorRange,
+    name: DEFAULT_CUSTOM_PALETTE.name,
+    type: DEFAULT_CUSTOM_PALETTE.type,
+    category: DEFAULT_CUSTOM_PALETTE.category,
+    ...(colorMap ? {colorMap} : {})
+  };
+
+  // only customPalette.colors are needed for custom palette editor with custom ordinal scale
+  if (!colorMap && colorRange.type === SCALE_TYPES.customOrdinal) {
+    delete customPalette.colorMap;
+  }
+  return customPalette;
 }

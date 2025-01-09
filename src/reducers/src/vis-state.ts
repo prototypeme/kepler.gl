@@ -16,6 +16,8 @@ const actionHandler = {
 
   [ActionTypes.ADD_LAYER]: visStateUpdaters.addLayerUpdater,
 
+  [ActionTypes.APPLY_FILTER_CONFIG]: visStateUpdaters.applyFilterConfigUpdater,
+
   [ActionTypes.APPLY_LAYER_CONFIG]: visStateUpdaters.applyLayerConfigUpdater,
 
   [ActionTypes.DUPLICATE_LAYER]: visStateUpdaters.duplicateLayerUpdater,
@@ -35,6 +37,8 @@ const actionHandler = {
   [ActionTypes.LAYER_TYPE_CHANGE]: visStateUpdaters.layerTypeChangeUpdater,
 
   [ActionTypes.LAYER_VIS_CONFIG_CHANGE]: visStateUpdaters.layerVisConfigChangeUpdater,
+
+  [ActionTypes.LAYER_TOGGLE_VISIBILITY]: visStateUpdaters.layerToggleVisibilityUpdater,
 
   [ActionTypes.LAYER_TEXT_LABEL_CHANGE]: visStateUpdaters.layerTextLabelChangeUpdater,
 
@@ -90,6 +94,8 @@ const actionHandler = {
   [ActionTypes.TOGGLE_FILTER_ANIMATION]: visStateUpdaters.toggleFilterAnimationUpdater,
 
   [ActionTypes.UPDATE_FILTER_ANIMATION_SPEED]: visStateUpdaters.updateFilterAnimationSpeedUpdater,
+
+  [ActionTypes.SET_ANIMATION_CONFIG]: visStateUpdaters.setAnimationConfigUpdater,
 
   [ActionTypes.SET_LAYER_ANIMATION_TIME]: visStateUpdaters.setLayerAnimationTimeUpdater,
 
