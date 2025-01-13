@@ -114,7 +114,7 @@ const LOAD_REMOTE_RESOURCE_SUCCESS_TASK = Task.fromPromise(
 
 // this can be moved into a action and call kepler.gl action
 /**
- *
+ * Used to load Kepler.gl demo examples
  * @param state
  * @param action {map: resultset, config, map}
  * @returns {{app: {isMapLoading: boolean}, keplerGl: {map: (state|*)}}}
@@ -172,7 +172,7 @@ const loadRemoteDatasetProcessedSuccess = (state, action) => {
     {
       payload: {
         datasets,
-        parsedConfig,
+        config: parsedConfig,
         options: {
           centerMap: Boolean(!config)
         }

@@ -339,6 +339,9 @@ const PARSE_LOAD_MAP_RESPONSE_TASK = Task.fromPromise(
   'PARSE_LOAD_MAP_RESPONSE_TASK'
 );
 
+/**
+ * Used to load resources stored in a private storage.
+ */
 export const loadCloudMapSuccessUpdater = (
   state: ProviderState,
   action: ActionPayload<ProviderActions.LoadCloudMapSuccessPayload>
