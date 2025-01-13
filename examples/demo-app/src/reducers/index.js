@@ -133,6 +133,7 @@ export const loadRemoteResourceSuccess = (state, action) => {
   if (typeof table.getFileProcessor === 'function') {
     // use custom processors from table class
     const processorResult = table.getFileProcessor(unprocessedData);
+    // TODO save processorResult.format here with the dataset
     processorMethod = processorResult.processor;
   } else {
     if (shape === 'arrow-table') {
@@ -151,13 +152,13 @@ export const loadRemoteResourceSuccess = (state, action) => {
     datasetId,
     unprocessedData,
     processorMethod
-  });
+  }).bimap(
+    datasets => loadRemoteDatasetProcessedSuccessAction({...action, datasets}),
 
-  const tasks = Task.allSettled([task]).map(results => {
-    return loadRemoteDatasetProcessedSuccessAction({...action, datasets: results[0].value});
-  });
+    error => exportFileError({error, provider, options, onError})
+  );
 
-  return withTask(state, tasks);
+  return withTask(state, task);
 };
 
 const loadRemoteDatasetProcessedSuccess = (state, action) => {
