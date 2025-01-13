@@ -3,19 +3,24 @@
 
 import {combineReducers} from 'redux';
 import {handleActions} from 'redux-actions';
+import Task, {withTask} from 'react-palm/tasks';
 
-import keplerGlReducer, {combinedUpdaters, uiStateUpdaters} from '@kepler.gl/reducers';
-import {processGeojson, processRowObject, processArrowTable} from '@kepler.gl/processors';
-import KeplerGlSchema from '@kepler.gl/schemas';
-import {EXPORT_MAP_FORMATS} from '@kepler.gl/constants';
 import {aiAssistantReducer} from '@kepler.gl/ai-assistant';
+import {EXPORT_MAP_FORMATS} from '@kepler.gl/constants';
+import {processGeojson, processRowObject, processArrowTable} from '@kepler.gl/processors';
+import keplerGlReducer, {combinedUpdaters, uiStateUpdaters} from '@kepler.gl/reducers';
+import KeplerGlSchema from '@kepler.gl/schemas';
+import {KeplerTable} from '@kepler.gl/table';
+import {getApplicationConfig} from '@kepler.gl/utils';
 
 import {
   INIT,
   LOAD_MAP_SAMPLE_FILE,
   LOAD_REMOTE_RESOURCE_SUCCESS,
+  LOAD_REMOTE_DATASET_PROCESSED_SUCCESS,
   LOAD_REMOTE_RESOURCE_ERROR,
-  SET_SAMPLE_LOADING_STATUS
+  SET_SAMPLE_LOADING_STATUS,
+  loadRemoteDatasetProcessedSuccessAction
 } from '../actions';
 
 import {CLOUD_PROVIDERS_CONFIGURATION} from '../constants/default-settings';
@@ -92,6 +97,21 @@ const demoReducer = combineReducers({
   aiAssistant: aiAssistantReducer
 });
 
+async function loadRemoteResourceSuccessTask(input) {
+  const data = await input.processorMethod(input.unprocessedData);
+  return {
+    info: {
+      id: input.datasetId
+    },
+    data
+  };
+}
+
+const LOAD_REMOTE_RESOURCE_SUCCESS_TASK = Task.fromPromise(
+  loadRemoteResourceSuccessTask,
+  'LOAD_REMOTE_RESOURCE_SUCCESS_TASK'
+);
+
 // this can be moved into a action and call kepler.gl action
 /**
  *
@@ -107,34 +127,52 @@ export const loadRemoteResourceSuccess = (state, action) => {
   const {shape} = action.response;
   let processorMethod = processRowObject;
   let unprocessedData = action.response;
-  if (shape === 'arrow-table') {
-    processorMethod = processArrowTable;
-  } else if (shape === 'object-row-table') {
-    processorMethod = processRowObject;
-    unprocessedData = action.response.data;
-  } else if (dataUrl.includes('.json') || dataUrl.includes('.geojson')) {
-    processorMethod = processGeojson;
+  unprocessedData = shape === 'object-row-table' ? action.response.data : unprocessedData;
+
+  const table = getApplicationConfig().table ?? KeplerTable;
+  if (typeof table.getFileProcessor === 'function') {
+    // use custom processors from table class
+    const processorResult = table.getFileProcessor(unprocessedData);
+    processorMethod = processorResult.processor;
   } else {
-    throw new Error('Failed to select data processor');
+    if (shape === 'arrow-table') {
+      processorMethod = processArrowTable;
+    } else if (shape === 'object-row-table') {
+      processorMethod = processRowObject;
+    } else if (dataUrl.includes('.json') || dataUrl.includes('.geojson')) {
+      processorMethod = processGeojson;
+    } else {
+      throw new Error('Failed to select data processor');
+    }
   }
 
-  const datasets = {
-    info: {
-      id: datasetId
-    },
-    data: processorMethod(unprocessedData)
-  };
+  // processorMethod can be async so create a task
+  const task = LOAD_REMOTE_RESOURCE_SUCCESS_TASK({
+    datasetId,
+    unprocessedData,
+    processorMethod
+  });
 
-  const config = action.config ? KeplerGlSchema.parseSavedConfig(action.config) : null;
+  const tasks = Task.allSettled([task]).map(results => {
+    return loadRemoteDatasetProcessedSuccessAction({...action, datasets: results[0].value});
+  });
+
+  return withTask(state, tasks);
+};
+
+const loadRemoteDatasetProcessedSuccess = (state, action) => {
+  const {config, datasets, options} = action.payload;
+
+  const parsedConfig = config ? KeplerGlSchema.parseSavedConfig(config) : null;
 
   const keplerGlInstance = combinedUpdaters.addDataToMapUpdater(
     state.keplerGl.map, // "map" is the id of your kepler.gl instance
     {
       payload: {
         datasets,
-        config,
+        parsedConfig,
         options: {
-          centerMap: Boolean(!action.config)
+          centerMap: Boolean(!config)
         }
       }
     }
@@ -144,7 +182,7 @@ export const loadRemoteResourceSuccess = (state, action) => {
     ...state,
     app: {
       ...state.app,
-      currentSample: action.options,
+      currentSample: options,
       isMapLoading: false // we turn off the spinner
     },
     keplerGl: {
@@ -182,6 +220,7 @@ export const loadRemoteResourceError = (state, action) => {
 
 const composedUpdaters = {
   [LOAD_REMOTE_RESOURCE_SUCCESS]: loadRemoteResourceSuccess,
+  [LOAD_REMOTE_DATASET_PROCESSED_SUCCESS]: loadRemoteDatasetProcessedSuccess,
   [LOAD_REMOTE_RESOURCE_ERROR]: loadRemoteResourceError
 };
 
