@@ -27,7 +27,7 @@ import {CLOUD_PROVIDERS_CONFIGURATION} from '../constants/default-settings';
 import {generateHashId} from '../utils/strings';
 
 const {DEFAULT_MAP_CONTROLS} = uiStateUpdaters;
-console.log(DEFAULT_MAP_CONTROLS);
+// console.log(DEFAULT_MAP_CONTROLS);
 // INITIAL_APP_STATE
 const initialAppState = {
   appName: 'example',
@@ -154,8 +154,9 @@ export const loadRemoteResourceSuccess = (state, action) => {
     processorMethod
   }).bimap(
     datasets => loadRemoteDatasetProcessedSuccessAction({...action, datasets}),
-
-    error => exportFileError({error, provider, options, onError})
+    error => {
+      throw new Error('loadRemoteResource data processor failed');
+    }
   );
 
   return withTask(state, task);

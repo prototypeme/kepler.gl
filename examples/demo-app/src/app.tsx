@@ -194,7 +194,9 @@ const App = props => {
 
     // Notifications
     // _loadMockNotifications();
-  }, [dispatch, id, provider, query]);
+
+    // Dependencies: we don't want this effect to be called multiple times?
+  }, []);
 
   const _setStartScreenCapture = useCallback(
     flag => {
