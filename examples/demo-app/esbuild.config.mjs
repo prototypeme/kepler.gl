@@ -3,6 +3,7 @@
 
 import esbuild from 'esbuild';
 import {replace} from 'esbuild-plugin-replace';
+import {dotenvRun} from '@dotenv-run/esbuild';
 
 import process from 'node:process';
 import fs from 'node:fs';
@@ -43,6 +44,7 @@ const RESOLVE_LOCAL_ALIASES = {
   'keplergl-duckdb-plugin': `${SRC_DIR}/keplergl-duckdb-plugin/src`
 };
 
+const NODE_ENV = JSON.stringify(process.env.NODE_ENV || 'production');
 const config = {
   platform: 'browser',
   format: 'iife',
@@ -57,19 +59,13 @@ const config = {
   entryPoints: ['src/main.js'],
   outfile: 'dist/bundle.js',
   bundle: true,
-  define: {
-    NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'production'),
-    'process.env.MapboxAccessToken': JSON.stringify(process.env.MapboxAccessToken || ''),
-    'process.env.DropboxClientId': JSON.stringify(process.env.DropboxClientId || ''),
-    'process.env.MapboxExportToken': JSON.stringify(process.env.MapboxExportToken || ''),
-    'process.env.CartoClientId': JSON.stringify(process.env.CartoClientId || ''),
-    'process.env.FoursquareClientId': JSON.stringify(process.env.FoursquareClientId || ''),
-    'process.env.FoursquareDomain': JSON.stringify(process.env.FoursquareDomain || ''),
-    'process.env.FoursquareAPIURL': JSON.stringify(process.env.FoursquareAPIURL || ''),
-    'process.env.FoursquareUserMapsURL': JSON.stringify(process.env.FoursquareUserMapsURL || ''),
-    'process.env.OpenAIToken': JSON.stringify(process.env.OpenAIToken || '')
-  },
+  define: {NODE_ENV},
   plugins: [
+    dotenvRun({
+      verbose: true,
+      environment: NODE_ENV,
+      root: '../../.env'
+    }),
     // automatically injected kepler.gl package version into the bundle
     replace({
       __PACKAGE_VERSION__: KeplerPackage.version,
