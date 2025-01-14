@@ -131,6 +131,10 @@ export const loadRemoteResourceSuccess = (state, action) => {
 
   const table = getApplicationConfig().table ?? KeplerTable;
   if (typeof table.getFileProcessor === 'function') {
+    if (shape === 'arrow-table') {
+      // arrow processor from table plugin expects batches
+      unprocessedData = action.response.data.batches;
+    }
     // use custom processors from table class
     const processorResult = table.getFileProcessor(unprocessedData);
     // TODO save processorResult.format here with the dataset
